@@ -1,3 +1,7 @@
+#include <SoftwareSerial.h>
+
+#include <TinyGPS.h>
+
 // Import required libraries
 #include "ESP8266WiFi.h"
 // for OTA
@@ -13,15 +17,22 @@
 Adafruit_MotorShield AFMS = Adafruit_MotorShield(0x62); 
  
 // And connect 2 DC motors to port M3 & M4 !
-Adafruit_DCMotor *L_MOTOR = AFMS.getMotor(4);
-Adafruit_DCMotor *R_MOTOR = AFMS.getMotor(3);
+Adafruit_DCMotor *L_MOTOR = AFMS.getMotor(2);
+Adafruit_DCMotor *R_MOTOR = AFMS.getMotor(1);
 
 // Create aREST instance
 aREST rest = aREST();
 
+//gps serial 
+TinyGPS gps;
+// rx 14, tx 12 - brown
+SoftwareSerial gpsSer(14,12, false, 256);
+
 // WiFi parameters
-const char* ssid = "EE-4594jp";
-const char* password = "glue-shine-few";
+const char* ssid_def = "EE-4594jp";
+const char* password_def = "glue-shine-few";
+const char* ssid = "nexus";
+const char* password = "isabelle";
 
 // The port to listen for incoming TCP connections 
 #define LISTEN_PORT           80
@@ -29,17 +40,31 @@ const char* password = "glue-shine-few";
 // Create an instance of the server
 WiFiServer server(LISTEN_PORT);
 
-// Function
+// aRest Functions
 int stop(String message);
 int forward(String message);
 int right(String message);
 int left(String message);
 int backward(String message);
 
+
+// constants
+const int motor_speed_straight =255;
+
+const int motor_speed_rotate =100;
+
+
 void setup(void)
 {  
   // Start Serial
   Serial.begin(115200);
+
+  Serial.println( "Compiled: " __DATE__ ", " __TIME__ ", " __VERSION__);
+  Serial.print( "Arduino IDE version: ");
+  Serial.println( ARDUINO, DEC);
+  
+  gpsSer.begin(9600);
+
 
   // Init motor shield
   AFMS.begin();  
@@ -54,16 +79,25 @@ void setup(void)
   // Give name and ID to device
   rest.set_id("1");
   rest.set_name("robot");
-  
+
+  int attempt=0;
   // Connect to WiFi
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+  while ((WiFi.status() != WL_CONNECTED) && (attempt<20), attempt++) {
     delay(500);
     Serial.print(".");
   }
+  if( WiFi.status() != WL_CONNECTED){
+      Serial.print("Connection failed. Trying default ssid");
+      WiFi.begin(ssid_def, password_def);
+      while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+      }    
+  }
   Serial.println("");
   Serial.println("WiFi connected");
-
+  Serial.println(WiFi.localIP());
 
   // Port defaults to 8266
   ArduinoOTA.setPort(8266);
@@ -99,32 +133,59 @@ void setup(void)
   Serial.println("Server started");
   
   // Print the IP address
-  Serial.println(WiFi.localIP());
-  
+
 }
 
 void loop() {
+
+
+    
   ArduinoOTA.handle();
   // Handle REST calls
   WiFiClient client = server.available();
-  if (!client) {
-    return;
+  if (client && client.available()){
+    rest.handle(client);
   }
-  while(!client.available()){
-    delay(1);
-  }
-  rest.handle(client);
  
+  while (gpsSer.available()){
+    if(gps.encode(gpsSer.read())){
+      long lat, lon;
+      unsigned long fix_age, time, date, speed, course;
+      unsigned long chars;
+      unsigned short sentences, failed_checksum;
+       
+      // retrieves +/- lat/long in 100000ths of a degree
+      gps.get_position(&lat, &lon, &fix_age);
+       
+      // time in hhmmsscc, date in ddmmyy
+      gps.get_datetime(&date, &time, &fix_age);
+       
+      // returns speed in 100ths of a knot
+      speed = gps.speed();
+       
+      // course in 100ths of a degree
+      course = gps.course();
+
+      Serial.print("Latitude:");
+      Serial.print( lat);
+      Serial.print(" Longitude:");
+      Serial.println( lon);
+      
+      break;
+    }
+  }
+
 }
+
+
 
 int stop(String command) {
   
   // Stop
   Serial.print("Stop");
   L_MOTOR->setSpeed(0);
-  L_MOTOR->run( RELEASE );
- 
   R_MOTOR->setSpeed(0);
+  L_MOTOR->run( RELEASE );
   R_MOTOR->run( RELEASE );
   
 }
@@ -132,10 +193,9 @@ int stop(String command) {
 int forward(String command) {
   Serial.println("forward");  
   // Stop
-  L_MOTOR->setSpeed(200);
+  L_MOTOR->setSpeed(motor_speed_straight);
+  R_MOTOR->setSpeed(motor_speed_straight);
   L_MOTOR->run( FORWARD );
- 
-  R_MOTOR->setSpeed(200);
   R_MOTOR->run( FORWARD );
   
 }
@@ -143,10 +203,9 @@ int forward(String command) {
 int left(String command) {
   
   // Stop
-  L_MOTOR->setSpeed(100);
+  L_MOTOR->setSpeed(motor_speed_rotate);
+  R_MOTOR->setSpeed(motor_speed_rotate);
   L_MOTOR->run( BACKWARD );
- 
-  R_MOTOR->setSpeed(100);
   R_MOTOR->run( FORWARD );
   
 }
@@ -154,10 +213,9 @@ int left(String command) {
 int right(String command) {
   
   // Stop
-  L_MOTOR->setSpeed(100);
+  L_MOTOR->setSpeed(motor_speed_rotate);
+  R_MOTOR->setSpeed(motor_speed_rotate);
   L_MOTOR->run( FORWARD );
- 
-  R_MOTOR->setSpeed(100);
   R_MOTOR->run( BACKWARD );
   
 }
@@ -165,10 +223,9 @@ int right(String command) {
 int backward(String command) {
   
   // Stop
-  L_MOTOR->setSpeed(150);
+  L_MOTOR->setSpeed(motor_speed_straight);
+  R_MOTOR->setSpeed(motor_speed_straight);
   L_MOTOR->run( BACKWARD );
- 
-  R_MOTOR->setSpeed(150);
   R_MOTOR->run( BACKWARD );
   
 }
