@@ -58,7 +58,7 @@ void setup(void)
 {  
   // Start Serial
   Serial.begin(115200);
-
+  Serial.println("");
   Serial.println( "Compiled: " __DATE__ ", " __TIME__ ", " __VERSION__);
   Serial.print( "Arduino IDE version: ");
   Serial.println( ARDUINO, DEC);
@@ -141,9 +141,14 @@ void loop() {
 
     
   ArduinoOTA.handle();
+  
   // Handle REST calls
+  // Without the delay call some messages are lost
   WiFiClient client = server.available();
-  if (client && client.available()){
+  if (client) {
+    while(!client.available()){
+      delay(1);
+    }
     rest.handle(client);
   }
  
@@ -182,7 +187,7 @@ void loop() {
 int stop(String command) {
   
   // Stop
-  Serial.print("Stop");
+  Serial.println("Stop");
   L_MOTOR->setSpeed(0);
   R_MOTOR->setSpeed(0);
   L_MOTOR->run( RELEASE );
