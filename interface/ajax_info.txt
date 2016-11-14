@@ -1,0 +1,1 @@
+This is contents of ajax_info.txt

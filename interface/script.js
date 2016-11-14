@@ -30,7 +30,20 @@ $( document ).ready(function() {
       device.callFunction("backward");
     });
     $('#backward').mouseup(function() {
+			$.get("ajax_info.txt", function(data, status){
+				$("#demo").text(data);
+			})
       device.callFunction("stop");
     });
 
 });
+
+function loadDoc() {
+			$.get("ajax_info.txt", function(data, status){
+				$("#demo").text(data);
+			})
+
+
+}
+
+
