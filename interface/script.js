@@ -1,3 +1,26 @@
+function loadLatestResults(){
+
+	$.get("http://192.168.1.95/variable",{name:"latitude"}).done( function(data ){
+		$("#latitude").text(data);
+	});
+	$.get("http://192.168.1.95/variable",{name:"longitude"}).done( function(data ){
+		$("#longitude").text(data);
+	});
+	$.get("http://192.168.1.95/variable",{name:"headingDegrees"}).done( function(data ){
+		$("#headingDegrees").text(data);
+	});
+	$.get("http://192.168.1.95/variable",{name:"accelX"}).done( function(data ){
+		$("#accelX").text(data);
+	});
+	$.get("http://192.168.1.95/variable",{name:"accelY"}).done( function(data ){
+		$("#accelY").text(data);
+	});
+	$.get("http://192.168.1.95/variable",{name:"accelZ"}).done( function(data ){
+		$("#accelZ").text(data);
+	});
+}
+
+
 $( document ).ready(function() {
 
     // Device
@@ -30,20 +53,22 @@ $( document ).ready(function() {
       device.callFunction("backward");
     });
     $('#backward').mouseup(function() {
-			$.get("ajax_info.txt", function(data, status){
-				$("#demo").text(data);
-			})
       device.callFunction("stop");
     });
+		
+    $('#displayReadings').mousedown(function(){
+			loadLatestResults();
+		});
 
-});
+/* 		window.setInterval(function(){
+			loadLatestResults();
+		}, 2000); */
+		
+		
+	} //end of ready function
+	); //end of ready			
+			
 
-function loadDoc() {
-			$.get("ajax_info.txt", function(data, status){
-				$("#demo").text(data);
-			})
 
-
-}
 
 
